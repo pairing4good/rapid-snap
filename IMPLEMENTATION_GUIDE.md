@@ -308,6 +308,7 @@ const [isCropping, setIsCropping] = useState(false)
 .editor-view.crop-mode .editor-controls {
   position: fixed;
   bottom: 0; left: 0; right: 0;
+  padding: 5px;  /* Compact padding to maximize canvas space */
 }
 ```
 

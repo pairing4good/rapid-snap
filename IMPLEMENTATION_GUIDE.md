@@ -393,6 +393,190 @@ export function applyCropToCanvas(canvas, cropArea) {
 }
 ```
 
+### Interactive Resize Handles
+Allow users to adjust crop boundaries after initial selection:
+
+```javascript
+// Add to component state
+const [activeHandle, setActiveHandle] = useState(null)
+
+// Detect handle clicks
+const getClickedHandle = (coords, start, end, canvas) => {
+  const rect = canvas.getBoundingClientRect()
+  const scaleX = canvas.width / rect.width
+  const handleSize = 40 * scaleX // Large touch target
+  const area = calculateCropArea(start, end)
+  
+  const handles = {
+    topLeft: { x: area.x, y: area.y },
+    topRight: { x: area.x + area.width, y: area.y },
+    bottomLeft: { x: area.x, y: area.y + area.height },
+    bottomRight: { x: area.x + area.width, y: area.y + area.height },
+    top: { x: area.x + area.width / 2, y: area.y },
+    right: { x: area.x + area.width, y: area.y + area.height / 2 },
+    bottom: { x: area.x + area.width / 2, y: area.y + area.height },
+    left: { x: area.x, y: area.y + area.height / 2 }
+  }
+  
+  for (const [name, pos] of Object.entries(handles)) {
+    const dx = Math.abs(coords.x - pos.x)
+    const dy = Math.abs(coords.y - pos.y)
+    if (dx < handleSize && dy < handleSize) return name
+  }
+  return null
+}
+
+// Update crop start handler
+const handleCropStart = (e) => {
+  if (!isCropping) return
+  const coords = getCanvasCoordinates(e, canvasRef.current)
+  
+  // Check if clicking on existing handle
+  if (cropStart && cropEnd) {
+    const handle = getClickedHandle(coords, cropStart, cropEnd, canvasRef.current)
+    if (handle) {
+      setActiveHandle(handle)
+      setIsDragging(true)
+      return
+    }
+  }
+  
+  // Start new crop
+  setCropStart(coords)
+  setCropEnd(coords)
+  setIsDragging(true)
+  setActiveHandle(null)
+}
+
+// Adjust crop based on active handle
+const adjustCropByHandle = (handle, coords, start, end, setStart, setEnd) => {
+  switch (handle) {
+    case 'topLeft':
+      setStart({ x: coords.x, y: coords.y })
+      break
+    case 'topRight':
+      setStart({ x: start.x, y: coords.y })
+      setEnd({ x: coords.x, y: end.y })
+      break
+    case 'bottomLeft':
+      setStart({ x: coords.x, y: start.y })
+      setEnd({ x: end.x, y: coords.y })
+      break
+    case 'bottomRight':
+      setEnd({ x: coords.x, y: coords.y })
+      break
+    case 'top':
+      setStart({ x: start.x, y: coords.y })
+      break
+    case 'right':
+      setEnd({ x: coords.x, y: end.y })
+      break
+    case 'bottom':
+      setEnd({ x: end.x, y: coords.y })
+      break
+    case 'left':
+      setStart({ x: coords.x, y: start.y })
+      break
+  }
+}
+
+// Update move handler
+const handleCropMove = (e) => {
+  if (!isCropping || !isDragging) return
+  const coords = getCanvasCoordinates(e, canvasRef.current)
+  
+  if (activeHandle && cropStart && cropEnd) {
+    adjustCropByHandle(activeHandle, coords, cropStart, cropEnd, setCropStart, setCropEnd)
+  } else if (cropStart) {
+    setCropEnd(coords)
+  }
+}
+```
+
+### Professional Crop Overlay
+Enhanced visualization with handles and composition grid:
+
+```javascript
+export function drawCropOverlay(ctx, cropArea, canvasWidth, canvasHeight) {
+  const { x, y, width, height } = cropArea
+  
+  // Darken outside crop area
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  ctx.fillRect(0, 0, canvasWidth, y)
+  ctx.fillRect(0, y, x, height)
+  ctx.fillRect(x + width, y, canvasWidth - (x + width), height)
+  ctx.fillRect(0, y + height, canvasWidth, canvasHeight - (y + height))
+  
+  // Crop border
+  ctx.strokeStyle = '#007aff'
+  ctx.lineWidth = 3
+  ctx.strokeRect(x, y, width, height)
+
+  // Rule of thirds grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  
+  // Vertical lines
+  ctx.moveTo(x + width / 3, y)
+  ctx.lineTo(x + width / 3, y + height)
+  ctx.moveTo(x + (width * 2) / 3, y)
+  ctx.lineTo(x + (width * 2) / 3, y + height)
+  
+  // Horizontal lines
+  ctx.moveTo(x, y + height / 3)
+  ctx.lineTo(x + width, y + height / 3)
+  ctx.moveTo(x, y + (height * 2) / 3)
+  ctx.lineTo(x + width, y + (height * 2) / 3)
+  
+  ctx.stroke()
+  
+  // Resize handles (8 total: 4 corners + 4 edges)
+  const handleSize = 24
+  const handleOffset = handleSize / 2
+  
+  const handles = [
+    { x: x, y: y }, // top-left
+    { x: x + width, y: y }, // top-right
+    { x: x, y: y + height }, // bottom-left
+    { x: x + width, y: y + height }, // bottom-right
+    { x: x + width / 2, y: y }, // top
+    { x: x + width, y: y + height / 2 }, // right
+    { x: x + width / 2, y: y + height }, // bottom
+    { x: x, y: y + height / 2 } // left
+  ]
+  
+  // White border for visibility
+  ctx.fillStyle = '#ffffff'
+  handles.forEach(handle => {
+    ctx.fillRect(
+      handle.x - handleOffset - 2,
+      handle.y - handleOffset - 2,
+      handleSize + 4,
+      handleSize + 4
+    )
+  })
+  
+  // Blue handle squares
+  ctx.fillStyle = '#007aff'
+  handles.forEach(handle => {
+    ctx.fillRect(
+      handle.x - handleOffset,
+      handle.y - handleOffset,
+      handleSize,
+      handleSize
+    )
+  })
+}
+```
+
+**Features:**
+- **8 resize handles** - 4 corners + 4 edge midpoints
+- **40px touch targets** - Larger hit detection for mobile
+- **Rule of thirds grid** - Professional composition guide
+- **Visual hierarchy** - White borders on handles for visibility
+- **Smart interaction** - Tap handle to resize, tap elsewhere for new crop
+
 ### Simplified Crop UI
 Hide all editing controls during crop:
 

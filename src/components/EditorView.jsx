@@ -22,6 +22,7 @@ function EditorView({ photo, onSave, onCancel }) {
   const [cropStart, setCropStart] = useState(null)
   const [cropEnd, setCropEnd] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [activeHandle, setActiveHandle] = useState(null)
 
   const applyEdits = useCallback(() => {
     if (!imageRef.current || !canvasRef.current) {
@@ -138,19 +139,40 @@ function EditorView({ photo, onSave, onCancel }) {
   const handleCropStart = (e) => {
     if (!isCropping) return
     const coords = getCanvasCoordinates(e, canvasRef.current)
+    
+    // Check if clicking on an existing crop handle
+    if (cropStart && cropEnd) {
+      const handle = getClickedHandle(coords, cropStart, cropEnd, canvasRef.current)
+      if (handle) {
+        setActiveHandle(handle)
+        setIsDragging(true)
+        return
+      }
+    }
+    
+    // Start new crop selection
     setCropStart(coords)
     setCropEnd(coords)
     setIsDragging(true)
+    setActiveHandle(null)
   }
 
   const handleCropMove = (e) => {
-    if (!isCropping || !isDragging || !cropStart) return
+    if (!isCropping || !isDragging) return
     const coords = getCanvasCoordinates(e, canvasRef.current)
-    setCropEnd(coords)
+    
+    // If dragging a handle, adjust crop boundaries
+    if (activeHandle && cropStart && cropEnd) {
+      adjustCropByHandle(activeHandle, coords, cropStart, cropEnd, setCropStart, setCropEnd)
+    } else if (cropStart) {
+      // Creating new crop area
+      setCropEnd(coords)
+    }
   }
 
   const handleCropEnd = () => {
     setIsDragging(false)
+    setActiveHandle(null)
   }
 
   const applyCrop = async () => {
@@ -179,6 +201,66 @@ function EditorView({ photo, onSave, onCancel }) {
       const url = URL.createObjectURL(blob)
       onSave({ url, blob, edited: true })
     }, 'image/jpeg', 0.95)
+  }
+
+  // Helper: Detect if click is on a crop handle
+  const getClickedHandle = (coords, start, end, canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const handleSize = 40 * scaleX // Larger touch target
+    const area = calculateCropArea(start, end)
+    
+    const handles = {
+      topLeft: { x: area.x, y: area.y },
+      topRight: { x: area.x + area.width, y: area.y },
+      bottomLeft: { x: area.x, y: area.y + area.height },
+      bottomRight: { x: area.x + area.width, y: area.y + area.height },
+      top: { x: area.x + area.width / 2, y: area.y },
+      right: { x: area.x + area.width, y: area.y + area.height / 2 },
+      bottom: { x: area.x + area.width / 2, y: area.y + area.height },
+      left: { x: area.x, y: area.y + area.height / 2 }
+    }
+    
+    for (const [name, pos] of Object.entries(handles)) {
+      const dx = Math.abs(coords.x - pos.x)
+      const dy = Math.abs(coords.y - pos.y)
+      if (dx < handleSize && dy < handleSize) {
+        return name
+      }
+    }
+    return null
+  }
+
+  // Helper: Adjust crop boundaries based on active handle
+  const adjustCropByHandle = (handle, coords, start, end, setStart, setEnd) => {
+    switch (handle) {
+      case 'topLeft':
+        setStart({ x: coords.x, y: coords.y })
+        break
+      case 'topRight':
+        setStart({ x: start.x, y: coords.y })
+        setEnd({ x: coords.x, y: end.y })
+        break
+      case 'bottomLeft':
+        setStart({ x: coords.x, y: start.y })
+        setEnd({ x: end.x, y: coords.y })
+        break
+      case 'bottomRight':
+        setEnd({ x: coords.x, y: coords.y })
+        break
+      case 'top':
+        setStart({ x: start.x, y: coords.y })
+        break
+      case 'right':
+        setEnd({ x: coords.x, y: end.y })
+        break
+      case 'bottom':
+        setEnd({ x: end.x, y: coords.y })
+        break
+      case 'left':
+        setStart({ x: coords.x, y: start.y })
+        break
+    }
   }
 
   const filters = [

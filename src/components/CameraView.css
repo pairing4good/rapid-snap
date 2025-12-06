@@ -88,7 +88,12 @@
   transition: all 0.2s;
 }
 
-.done-btn:active {
+.done-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.done-btn:active:not(:disabled) {
   transform: scale(0.95);
   background: #0051d5;
 }
@@ -103,4 +108,18 @@
   font-size: 14px;
   font-weight: 600;
   backdrop-filter: blur(10px);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.photo-counter:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.photo-counter:active:not(:disabled) {
+  transform: scale(0.95);
+  background: rgba(0, 122, 255, 0.8);
 }

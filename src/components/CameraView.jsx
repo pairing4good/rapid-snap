@@ -58,10 +58,15 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
   return (
     <div className="camera-view">
       <video ref={videoRef} autoPlay playsInline />
-      <div className="photo-counter">{photoCount} photo{photoCount !== 1 ? 's' : ''}</div>
+      <button 
+        className="photo-counter" 
+        onClick={handleDone}
+        disabled={photoCount === 0}
+      >
+        {photoCount} photo{photoCount !== 1 ? 's' : ''}
+      </button>
       <div className="camera-controls">
         <button className="capture-btn" onClick={capturePhoto} />
-        <button className="done-btn" onClick={handleDone}>Done</button>
       </div>
     </div>
   )

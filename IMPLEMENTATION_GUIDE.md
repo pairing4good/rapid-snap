@@ -302,7 +302,7 @@ const [isCropping, setIsCropping] = useState(false)
 }
 
 .editor-view.crop-mode .editor-canvas-container {
-  padding: 70px 10px 100px;  /* More room for canvas */
+  padding: 10px 10px 100px;  /* Top/sides: minimal, bottom: room for controls */
 }
 
 .editor-view.crop-mode .editor-controls {

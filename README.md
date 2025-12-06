@@ -2,6 +2,8 @@
 
 **Capture photos at lightning speed.** Snap multiple shots back-to-back without delay, then edit and upload. Perfect for fast-moving moments. Built with React + Vite.
 
+🌐 **[Try the Demo](https://pairing4good.github.io/rapid-snap/)** (works on mobile & desktop)
+
 ## Quick Start
 
 ```bash
@@ -62,13 +64,7 @@ npm run dev
 **Security warning:** Normal for self-signed cert, safe to bypass  
 **Port in use:** Change port in `vite.config.js`
 
----
 
-## Deploy to GitHub Pages
-
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for full instructions.
-
-**Quick:** Push to GitHub → Enable Pages → Live at `https://username.github.io/repo-name/`
 
 ---
 

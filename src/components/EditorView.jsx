@@ -78,6 +78,24 @@ function EditorView({ photo, onSave, onCancel }) {
     }
   }, [imageLoaded, applyEdits])
 
+  // Prevent scrolling during crop with non-passive touch events
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const preventScroll = (e) => {
+      if (isCropping && isDragging) {
+        e.preventDefault()
+      }
+    }
+
+    canvas.addEventListener('touchmove', preventScroll, { passive: false })
+    
+    return () => {
+      canvas.removeEventListener('touchmove', preventScroll)
+    }
+  }, [isCropping, isDragging])
+
   useEffect(() => {
     if (!isCropping || !cropStart || !cropEnd || !canvasRef.current) return
 
@@ -173,7 +191,7 @@ function EditorView({ photo, onSave, onCancel }) {
   ]
 
   return (
-    <div className="editor-view">
+    <div className={`editor-view ${isCropping ? 'crop-mode' : ''}`}>
       <div className="editor-header">
         <button className="back-btn" onClick={onCancel}>Cancel</button>
         <h2>Edit Photo</h2>
@@ -190,7 +208,11 @@ function EditorView({ photo, onSave, onCancel }) {
           onTouchStart={handleCropStart}
           onTouchMove={handleCropMove}
           onTouchEnd={handleCropEnd}
-          style={{ cursor: isCropping ? 'crosshair' : 'default' }}
+          onTouchCancel={handleCropEnd}
+          style={{ 
+            cursor: isCropping ? 'crosshair' : 'default',
+            touchAction: isCropping ? 'none' : 'auto'
+          }}
         />
       </div>
 
@@ -201,8 +223,14 @@ function EditorView({ photo, onSave, onCancel }) {
             onClick={() => {
               if (isCropping && cropStart && cropEnd) {
                 applyCrop()
+              } else if (isCropping) {
+                // Cancel crop mode
+                setIsCropping(false)
+                setCropStart(null)
+                setCropEnd(null)
+                applyEdits()
               } else {
-                setIsCropping(!isCropping)
+                setIsCropping(true)
                 setCropStart(null)
                 setCropEnd(null)
               }
@@ -210,24 +238,28 @@ function EditorView({ photo, onSave, onCancel }) {
           >
             {isCropping ? (cropStart && cropEnd ? 'Apply Crop' : 'Cancel') : 'Crop'}
           </button>
-          <button className="action-btn" onClick={handleReset}>
-            Reset All
-          </button>
+          {!isCropping && (
+            <button className="action-btn" onClick={handleReset}>
+              Reset All
+            </button>
+          )}
         </div>
 
-        <div className="filter-buttons">
+        {!isCropping && (
+          <div className="filter-buttons">
           {filters.map(filter => (
             <button
               key={filter.id}
               className={`filter-btn ${currentFilter === filter.id ? 'active' : ''}`}
               onClick={() => setCurrentFilter(filter.id)}
-              disabled={isCropping}
             >
               {filter.label}
             </button>
           ))}
         </div>
+        )}
 
+        {!isCropping && (
         <div className="adjustment-controls">
           <div className="control-group">
             <label>Brightness</label>
@@ -262,6 +294,7 @@ function EditorView({ photo, onSave, onCancel }) {
             />
           </div>
         </div>
+        )}
       </div>
     </div>
   )

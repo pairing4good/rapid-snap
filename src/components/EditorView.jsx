@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { applyPixelManipulation, applyFilterEffect } from '../filters'
+import { 
+  getCanvasCoordinates, 
+  calculateCropArea, 
+  drawCropOverlay, 
+  isValidCropArea, 
+  applyCropToCanvas 
+} from '../utils/cropUtils'
 import './EditorView.css'
 
 function EditorView({ photo, onSave, onCancel }) {
@@ -14,81 +22,6 @@ function EditorView({ photo, onSave, onCancel }) {
   const [cropStart, setCropStart] = useState(null)
   const [cropEnd, setCropEnd] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
-
-  const applyPixelManipulation = (imageData, brightnessVal, contrastVal, saturationVal) => {
-    const data = imageData.data
-    const contrastFactor = (259 * (contrastVal + 255)) / (255 * (259 - contrastVal))
-
-    for (let i = 0; i < data.length; i += 4) {
-      let r = data[i]
-      let g = data[i + 1]
-      let b = data[i + 2]
-
-      // Apply brightness
-      r = r * brightnessVal
-      g = g * brightnessVal
-      b = b * brightnessVal
-
-      // Apply contrast
-      r = contrastFactor * (r - 128) + 128
-      g = contrastFactor * (g - 128) + 128
-      b = contrastFactor * (b - 128) + 128
-
-      // Apply saturation
-      const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-      r = gray + saturationVal * (r - gray)
-      g = gray + saturationVal * (g - gray)
-      b = gray + saturationVal * (b - gray)
-
-      // Clamp values
-      data[i] = Math.max(0, Math.min(255, r))
-      data[i + 1] = Math.max(0, Math.min(255, g))
-      data[i + 2] = Math.max(0, Math.min(255, b))
-    }
-
-    return imageData
-  }
-
-  const applyFilterEffect = (imageData, filter) => {
-    const data = imageData.data
-
-    for (let i = 0; i < data.length; i += 4) {
-      let r = data[i]
-      let g = data[i + 1]
-      let b = data[i + 2]
-
-      switch (filter) {
-        case 'grayscale':
-          const gray = 0.299 * r + 0.587 * g + 0.114 * b
-          data[i] = data[i + 1] = data[i + 2] = gray
-          break
-        case 'sepia':
-          data[i] = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189)
-          data[i + 1] = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168)
-          data[i + 2] = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131)
-          break
-        case 'vintage':
-          const sepiaR = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189)
-          const sepiaG = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168)
-          const sepiaB = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131)
-          data[i] = sepiaR * 0.5 + r * 0.5
-          data[i + 1] = sepiaG * 0.5 + g * 0.5
-          data[i + 2] = sepiaB * 0.5 + b * 0.5
-          break
-        case 'cool':
-          data[i] = Math.min(255, r * 0.5 + b * 0.5)
-          data[i + 2] = Math.min(255, b * 1.2)
-          break
-        case 'warm':
-          data[i] = Math.min(255, r * 1.2)
-          data[i + 1] = Math.min(255, g * 1.1)
-          data[i + 2] = Math.min(255, b * 0.8)
-          break
-      }
-    }
-
-    return imageData
-  }
 
   const applyEdits = useCallback(() => {
     if (!imageRef.current || !canvasRef.current) {
@@ -154,24 +87,9 @@ function EditorView({ photo, onSave, onCancel }) {
     // Redraw with current edits
     applyEdits()
 
-    // Draw crop rectangle
-    const x = Math.min(cropStart.x, cropEnd.x)
-    const y = Math.min(cropStart.y, cropEnd.y)
-    const width = Math.abs(cropEnd.x - cropStart.x)
-    const height = Math.abs(cropEnd.y - cropStart.y)
-
-    ctx.strokeStyle = '#007aff'
-    ctx.lineWidth = 2
-    ctx.setLineDash([5, 5])
-    ctx.strokeRect(x, y, width, height)
-    ctx.setLineDash([])
-
-    // Darken outside of crop area
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-    ctx.fillRect(0, 0, canvas.width, y)
-    ctx.fillRect(0, y, x, height)
-    ctx.fillRect(x + width, y, canvas.width - (x + width), height)
-    ctx.fillRect(0, y + height, canvas.width, canvas.height - (y + height))
+    // Draw crop overlay
+    const cropArea = calculateCropArea(cropStart, cropEnd)
+    drawCropOverlay(ctx, cropArea, canvas.width, canvas.height)
   }, [cropStart, cropEnd, isCropping, applyEdits])
 
   const handleReset = () => {
@@ -201,60 +119,39 @@ function EditorView({ photo, onSave, onCancel }) {
 
   const handleCropStart = (e) => {
     if (!isCropping) return
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX || e.touches[0].clientX) - rect.left
-    const y = (e.clientY || e.touches[0].clientY) - rect.top
-    setCropStart({ x: x * scaleX, y: y * scaleY })
-    setCropEnd({ x: x * scaleX, y: y * scaleY })
+    const coords = getCanvasCoordinates(e, canvasRef.current)
+    setCropStart(coords)
+    setCropEnd(coords)
     setIsDragging(true)
   }
 
   const handleCropMove = (e) => {
     if (!isCropping || !isDragging || !cropStart) return
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const x = (e.clientX || e.touches[0].clientX) - rect.left
-    const y = (e.clientY || e.touches[0].clientY) - rect.top
-    setCropEnd({ x: x * scaleX, y: y * scaleY })
+    const coords = getCanvasCoordinates(e, canvasRef.current)
+    setCropEnd(coords)
   }
 
   const handleCropEnd = () => {
     setIsDragging(false)
   }
 
-  const applyCrop = () => {
+  const applyCrop = async () => {
     if (!cropStart || !cropEnd || !canvasRef.current) return
 
-    const x = Math.min(cropStart.x, cropEnd.x)
-    const y = Math.min(cropStart.y, cropEnd.y)
-    const width = Math.abs(cropEnd.x - cropStart.x)
-    const height = Math.abs(cropEnd.y - cropStart.y)
+    const cropArea = calculateCropArea(cropStart, cropEnd)
+    
+    if (!isValidCropArea(cropArea)) return
 
-    if (width < 10 || height < 10) return
-
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    const imageData = ctx.getImageData(x, y, width, height)
-
-    canvas.width = width
-    canvas.height = height
-    ctx.putImageData(imageData, 0, 0)
-
-    // Update image ref with cropped version
-    const croppedImg = new Image()
-    croppedImg.onload = () => {
+    try {
+      const croppedImg = await applyCropToCanvas(canvasRef.current, cropArea)
       imageRef.current = croppedImg
       setIsCropping(false)
       setCropStart(null)
       setCropEnd(null)
       applyEdits()
+    } catch (error) {
+      console.error('Failed to apply crop:', error)
     }
-    croppedImg.src = canvas.toDataURL()
   }
 
   const handleSave = () => {

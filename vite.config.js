@@ -1,24 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
-import { writeFileSync } from 'fs'
 
 export default defineConfig({
   // Set base path for GitHub Pages - update to match your repository name
   base: process.env.NODE_ENV === 'production' ? '/rapid-snap/' : '/',
   
-  plugins: [
-    react(), 
-    basicSsl(),
-    {
-      name: 'create-nojekyll',
-      closeBundle() {
-        if (process.env.NODE_ENV === 'production') {
-          writeFileSync('dist/.nojekyll', '')
-        }
-      }
-    }
-  ],
+  plugins: [react(), basicSsl()],
   
   server: {
     host: '0.0.0.0', // Allow access from other devices on network

@@ -12,6 +12,27 @@
   background: #000;
 }
 
+.camera-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  animation: flash 150ms ease-out;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes flash {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .camera-view.error-view {
   display: flex;
   align-items: center;

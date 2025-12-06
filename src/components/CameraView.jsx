@@ -6,6 +6,7 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
   const videoRef = useRef(null)
   const [stream, setStream] = useState(null)
   const [error, setError] = useState(null)
+  const [showFlash, setShowFlash] = useState(false)
 
   useEffect(() => {
     initCameraStream()
@@ -28,6 +29,10 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
 
   const capturePhoto = async () => {
     try {
+      // Trigger flash animation
+      setShowFlash(true)
+      setTimeout(() => setShowFlash(false), 150)
+      
       const photoData = await capturePhotoFromVideo(videoRef.current)
       onAddPhoto(photoData)
     } catch (err) {
@@ -58,6 +63,7 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
   return (
     <div className="camera-view">
       <video ref={videoRef} autoPlay playsInline />
+      {showFlash && <div className="camera-flash" />}
       <button 
         className="photo-counter" 
         onClick={handleDone}

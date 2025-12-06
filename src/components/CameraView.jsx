@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { initCamera, stopCamera, capturePhotoFromVideo } from '../utils/cameraUtils'
 import './CameraView.css'
 
 function CameraView({ photoCount, onAddPhoto, onDone }) {
@@ -7,44 +8,31 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    initCamera()
+    initCameraStream()
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop())
-      }
+      stopCamera(stream)
     }
   }, [])
 
-  const initCamera = async () => {
+  const initCameraStream = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false
-      })
+      const mediaStream = await initCamera()
       setStream(mediaStream)
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream
       }
     } catch (err) {
-      console.error('Error accessing camera:', err)
-      setError('Camera access denied. Please allow camera access to use this app.')
+      setError(err.message)
     }
   }
 
-  const capturePhoto = () => {
-    if (!videoRef.current) return
-
-    const video = videoRef.current
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0)
-
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob)
-      onAddPhoto({ url, blob, edited: false })
-    }, 'image/jpeg', 0.95)
+  const capturePhoto = async () => {
+    try {
+      const photoData = await capturePhotoFromVideo(videoRef.current)
+      onAddPhoto(photoData)
+    } catch (err) {
+      console.error('Failed to capture photo:', err)
+    }
   }
 
   const handleDone = () => {
@@ -52,9 +40,7 @@ function CameraView({ photoCount, onAddPhoto, onDone }) {
       alert('Take at least one photo first!')
       return
     }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop())
-    }
+    stopCamera(stream)
     onDone()
   }
 

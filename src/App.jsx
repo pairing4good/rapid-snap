@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { deletePhoto, updatePhoto } from './utils/photoUtils'
 import CameraView from './components/CameraView'
 import GalleryView from './components/GalleryView'
 import EditorView from './components/EditorView'
@@ -14,21 +15,11 @@ function App() {
   }
 
   const handleDeletePhoto = (index) => {
-    setPhotos(prev => {
-      const newPhotos = [...prev]
-      URL.revokeObjectURL(newPhotos[index].url)
-      newPhotos.splice(index, 1)
-      return newPhotos
-    })
+    setPhotos(prev => deletePhoto(prev, index))
   }
 
   const handleUpdatePhoto = (index, photoData) => {
-    setPhotos(prev => {
-      const newPhotos = [...prev]
-      URL.revokeObjectURL(newPhotos[index].url)
-      newPhotos[index] = photoData
-      return newPhotos
-    })
+    setPhotos(prev => updatePhoto(prev, index, photoData))
   }
 
   const handleEditPhoto = (index) => {

@@ -5,7 +5,11 @@
  */
 export async function initCamera(constraints = {}) {
   const defaultConstraints = {
-    video: { facingMode: 'environment' },
+    video: { 
+      facingMode: 'environment',
+      width: { ideal: 4096 },
+      height: { ideal: 2160 }
+    },
     audio: false,
     ...constraints
   }
@@ -35,7 +39,7 @@ export function stopCamera(stream) {
  * @param {number} quality - JPEG quality (0-1)
  * @returns {Promise<Object>} Photo data {url, blob}
  */
-export function capturePhotoFromVideo(videoElement, quality = 0.95) {
+export function capturePhotoFromVideo(videoElement, quality = 0.98) {
   return new Promise((resolve, reject) => {
     if (!videoElement) {
       reject(new Error('Video element not available'))
